@@ -144,6 +144,9 @@ class Config(object):
     # train the RPN.
     USE_RPN_ROIS = True
 
+    # For diagnosis only. To extract all ROI proposals rather than the positive ones.
+    EXTRACT_ALL_PROPOSALS = False
+
     def __init__(self):
         """Set values of computed attributes."""
         # Effective batch size

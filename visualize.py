@@ -75,9 +75,10 @@ def apply_mask(image, mask, color, alpha=0.5):
 
 def display_instances(image, boxes, masks, class_ids, class_names,
                       scores=None, title="",
-                      figsize=(16, 16), ax=None):
+                      figsize=(16, 16), ax=None, show=True,
+                      mask_alpha=0.5, verbose=True):
     """
-    boxes: [num_instance, (y1, x1, y2, x2, class_id)] in image coordinates.
+    boxes: [num_instance, (y1, x1, y2, x2)] in image coordinates.
     masks: [height, width, num_instances]
     class_ids: [num_instances]
     class_names: list of class names of the dataset
@@ -87,7 +88,8 @@ def display_instances(image, boxes, masks, class_ids, class_names,
     # Number of instances
     N = boxes.shape[0]
     if not N:
-        print("\n*** No instances to display *** \n")
+        if verbose:
+            print("\n*** No instances to display *** \n")
     else:
         assert boxes.shape[0] == masks.shape[-1] == class_ids.shape[0]
 
@@ -125,11 +127,11 @@ def display_instances(image, boxes, masks, class_ids, class_names,
         x = random.randint(x1, (x1 + x2) // 2)
         caption = "{} {:.3f}".format(label, score) if score else label
         ax.text(x1, y1 + 8, caption,
-                color='w', size=11, backgroundcolor="none")
+                color='blue', size=11, backgroundcolor="none")
 
         # Mask
         mask = masks[:, :, i]
-        masked_image = apply_mask(masked_image, mask, color)
+        masked_image = apply_mask(masked_image, mask, color, mask_alpha)
 
         # Mask Polygon
         # Pad to ensure proper polygons for masks that touch image edges.
@@ -143,8 +145,66 @@ def display_instances(image, boxes, masks, class_ids, class_names,
             p = Polygon(verts, facecolor="none", edgecolor=color)
             ax.add_patch(p)
     ax.imshow(masked_image.astype(np.uint8))
-    plt.show()
-    
+    if show:
+        plt.show()
+
+
+def display_bbox(image, boxes, class_ids, class_names,
+                      scores=None, title="",
+                      figsize=(16, 16), ax=None, show=True, verbose=True):
+    """Mainly used to display all proposals.
+    boxes: [num_instance, (y1, x1, y2, x2)] in image coordinates.
+    masks: [height, width, num_instances]
+    class_ids: [num_instances]
+    class_names: list of class names of the dataset
+    scores: (optional) confidence scores for each box
+    figsize: (optional) the size of the image.
+    """
+    # Number of instances
+    N = boxes.shape[0]
+    if not N:
+        print("\n*** No instances to display *** \n")
+    else:
+        assert boxes.shape[0] == class_ids.shape[0]
+
+    if not ax:
+        _, ax = plt.subplots(1, figsize=figsize)
+
+    # Generate random colors
+    colors = random_colors(N)
+
+    # Show area outside image boundaries.
+    height, width = image.shape[:2]
+    ax.set_ylim(height + 10, -10)
+    ax.set_xlim(-10, width + 10)
+    ax.axis('off')
+    ax.set_title(title)
+
+    masked_image = image.astype(np.uint32).copy()
+    for i in range(N):
+        color = colors[i]
+
+        # Bounding box
+        if not np.any(boxes[i]):
+            # Skip this instance. Has no bbox. Likely lost in image cropping.
+            continue
+        y1, x1, y2, x2 = boxes[i]
+        p = patches.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1,
+                              alpha=0.7, linestyle="dashed",
+                              edgecolor=color, facecolor='none')
+        ax.add_patch(p)
+
+        # Label
+        class_id = class_ids[i]
+        score = scores[i] if scores is not None else None
+        label = class_names[class_id]
+        x = random.randint(x1, (x1 + x2) // 2)
+        caption = "{} {:.3f}".format(label, score) if score else label
+        ax.text(x1, y1 + 8, caption,
+                color='y', size=11, backgroundcolor="none")
+    ax.imshow(masked_image.astype(np.uint8))
+    if show:
+        plt.show()
 
 def draw_rois(image, rois, refined_rois, mask, class_ids, class_names, limit=10):
     """
